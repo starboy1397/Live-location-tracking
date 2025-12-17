@@ -3,6 +3,10 @@ package com.kredily.location.ui;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.os.Build;
 import android.os.Bundle;
 import android.widget.Button;
@@ -28,12 +32,54 @@ public class MainActivity extends AppCompatActivity {
 
     MainViewModel vm;
     private static final int LOCATION_PERMISSION_REQUEST = 1001;
+    // UI
+    private TextView networkStatus;
+
+    // Network monitoring
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         setContentView(R.layout.activity_main);
 
         vm = new ViewModelProvider(this).get(MainViewModel.class);
+
+        // UI references
+        networkStatus = findViewById(R.id.networkStatus);
+
+        // Network manager
+        connectivityManager =
+                (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+
+        // Network callback (Online / Offline indicator)
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(@NonNull Network network) {
+                runOnUiThread(() -> {
+                    networkStatus.setText("Status: Online");
+                    networkStatus.setTextColor(
+                            ContextCompat.getColor(
+                                    MainActivity.this,
+                                    android.R.color.holo_green_dark
+                            )
+                    );
+                });
+            }
+
+            @Override
+            public void onLost(@NonNull Network network) {
+                runOnUiThread(() -> {
+                    networkStatus.setText("Status: Offline");
+                    networkStatus.setTextColor(
+                            ContextCompat.getColor(
+                                    MainActivity.this,
+                                    android.R.color.holo_red_dark
+                            )
+                    );
+                });
+            }
+        };
 
         Button start = findViewById(R.id.startBtn);
         Button stop = findViewById(R.id.stopBtn);
@@ -55,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
         stop.setOnClickListener(v ->
                 stopService(new Intent(this, LocationForegroundService.class)));
 
-        // ✅ Periodic WorkManager (ONLY ONCE)
+        //  Periodic WorkManager (ONLY ONCE)
         Constraints constraints = new Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build();
@@ -82,6 +128,36 @@ public class MainActivity extends AppCompatActivity {
         vm.getPendingCount().observe(this, count -> {
             pending.setText("Pending: " + (count == null ? 0 : count));
         });
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        NetworkRequest request = new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build();
+
+        connectivityManager.registerNetworkCallback(request, networkCallback);
+
+        // Initial state
+        if (NetworkUtil.isOnline(this)) {
+            networkStatus.setText("Status: Online");
+            networkStatus.setTextColor(
+                    ContextCompat.getColor(this, android.R.color.holo_green_dark)
+            );
+        } else {
+            networkStatus.setText("Status: Offline");
+            networkStatus.setTextColor(
+                    ContextCompat.getColor(this, android.R.color.holo_red_dark)
+            );
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        connectivityManager.unregisterNetworkCallback(networkCallback);
     }
 
     @Override
@@ -147,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        // 1️⃣ Location permission result
+        //  Location permission result
         if (requestCode == LOCATION_PERMISSION_REQUEST) {
             if (grantResults.length > 0
                     && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -168,7 +244,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // 2️⃣ Notification permission result
+        //  Notification permission result
         else if (requestCode == 2001) {
             if (grantResults.length > 0
                     && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
