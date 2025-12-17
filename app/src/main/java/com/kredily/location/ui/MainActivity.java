@@ -65,7 +65,12 @@ public class MainActivity extends AppCompatActivity {
                         LocationSyncWorker.class,
                         15, TimeUnit.MINUTES)
                         .setConstraints(constraints)
+                        .setBackoffCriteria(
+                                BackoffPolicy.EXPONENTIAL,
+                                10, TimeUnit.SECONDS
+                        )
                         .build();
+
 
         WorkManager.getInstance(this)
                 .enqueueUniquePeriodicWork(
@@ -190,7 +195,12 @@ public class MainActivity extends AppCompatActivity {
         OneTimeWorkRequest syncNow =
                 new OneTimeWorkRequest.Builder(LocationSyncWorker.class)
                         .setConstraints(constraints)
+                        .setBackoffCriteria(
+                                BackoffPolicy.EXPONENTIAL,
+                                10, TimeUnit.SECONDS
+                        )
                         .build();
+
 
         WorkManager.getInstance(this)
                 .enqueueUniqueWork(

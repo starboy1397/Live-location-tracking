@@ -1,6 +1,7 @@
 package com.kredily.location.worker;
 
 import android.content.Context;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.work.Worker;
@@ -20,9 +21,12 @@ public class LocationSyncWorker extends Worker {
         super(context, params);
     }
 
+
     @NonNull
     @Override
     public Result doWork() {
+
+        Log.d("LocationSyncWorker", "doWork() started at " + System.currentTimeMillis());
 
         LocationRepository repo =
                 new LocationRepository(getApplicationContext());
