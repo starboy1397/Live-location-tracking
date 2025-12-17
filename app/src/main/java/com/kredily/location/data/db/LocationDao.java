@@ -21,4 +21,7 @@ public interface LocationDao {
 
     @Query("SELECT COUNT(*) FROM locations WHERE synced = 0")
     LiveData<Integer> pendingCount();
+
+    @Insert
+    long insertAndReturnId(LocationEntity entity);
 }

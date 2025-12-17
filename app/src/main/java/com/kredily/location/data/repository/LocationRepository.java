@@ -8,6 +8,7 @@ import androidx.lifecycle.LiveData;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.kredily.location.data.db.AppDatabase;
 import com.kredily.location.data.db.LocationEntity;
+import com.kredily.location.util.NetworkUtil;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,14 +19,19 @@ public class LocationRepository {
 
     private final AppDatabase db;
     private final FirebaseFirestore firestore;
+    private final Context context;
+
 
     public LocationRepository(Context context) {
+        this.context = context.getApplicationContext();
         db = AppDatabase.getInstance(context);
         firestore = FirebaseFirestore.getInstance();
     }
 
     public void saveLocation(Location location) {
         Executors.newSingleThreadExecutor().execute(() -> {
+
+            //  Always save to Room first
             LocationEntity e = new LocationEntity();
             e.latitude = location.getLatitude();
             e.longitude = location.getLongitude();
@@ -34,9 +40,38 @@ public class LocationRepository {
             e.timestamp = location.getTime();
             e.synced = false;
 
-            db.locationDao().insert(e);
+            long rowId = db.locationDao().insertAndReturnId(e);
+            e.id = rowId;
+
+            // If internet is ON → upload immediately
+            if (NetworkUtil.isOnline(context)) {
+                uploadToFirebase(e);
+            }
         });
     }
+
+    private void uploadToFirebase(LocationEntity e) {
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("employeeId", "EMP001");
+        payload.put("latitude", e.latitude);
+        payload.put("longitude", e.longitude);
+        payload.put("accuracy", e.accuracy);
+        payload.put("timestamp", e.timestamp);
+        payload.put("speed", e.speed);
+
+        firestore.collection("locations")
+                .add(payload)
+                .addOnSuccessListener(doc -> {
+                    Executors.newSingleThreadExecutor().execute(() ->
+                            db.locationDao().markSynced(e.id)
+                    );
+                })
+                .addOnFailureListener(err -> {
+
+                });
+    }
+
 
     public void syncPendingLocations() {
         Executors.newSingleThreadExecutor().execute(() -> {
