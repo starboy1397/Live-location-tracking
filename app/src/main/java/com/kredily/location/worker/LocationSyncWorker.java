@@ -8,18 +8,37 @@ import androidx.work.WorkerParameters;
 
 import com.kredily.location.data.repository.LocationRepository;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 public class LocationSyncWorker extends Worker {
 
-    public LocationSyncWorker(@NonNull Context context,
-                              @NonNull WorkerParameters params) {
+    public LocationSyncWorker(
+            @NonNull Context context,
+            @NonNull WorkerParameters params
+    ) {
         super(context, params);
     }
 
     @NonNull
     @Override
     public Result doWork() {
-        new LocationRepository(getApplicationContext())
-                .syncPendingLocations();
-        return Result.success();
+
+        LocationRepository repo =
+                new LocationRepository(getApplicationContext());
+
+        CountDownLatch latch = new CountDownLatch(1);
+
+        repo.syncPendingLocationsBlocking(latch);
+
+        try {
+            // 🔴 Block Worker until Firebase sync completes
+            boolean finished = latch.await(2, TimeUnit.MINUTES);
+
+            return finished ? Result.success() : Result.retry();
+
+        } catch (InterruptedException e) {
+            return Result.retry();
+        }
     }
 }

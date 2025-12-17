@@ -19,6 +19,7 @@ import androidx.work.*;
 import com.kredily.location.R;
 import com.kredily.location.service.LocationForegroundService;
 import com.kredily.location.util.Constants;
+import com.kredily.location.util.NetworkUtil;
 import com.kredily.location.worker.LocationSyncWorker;
 
 import java.util.concurrent.TimeUnit;
@@ -51,15 +52,15 @@ public class MainActivity extends AppCompatActivity {
             startTrackingService();
         });
 
-
         stop.setOnClickListener(v ->
                 stopService(new Intent(this, LocationForegroundService.class)));
 
+        // ✅ Periodic WorkManager (ONLY ONCE)
         Constraints constraints = new Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build();
 
-        WorkRequest syncWork =
+        PeriodicWorkRequest syncWork =
                 new PeriodicWorkRequest.Builder(
                         LocationSyncWorker.class,
                         15, TimeUnit.MINUTES)
@@ -70,12 +71,23 @@ public class MainActivity extends AppCompatActivity {
                 .enqueueUniquePeriodicWork(
                         Constants.WORK_NAME_SYNC,
                         ExistingPeriodicWorkPolicy.KEEP,
-                        (PeriodicWorkRequest) syncWork);
+                        syncWork
+                );
 
         vm.getPendingCount().observe(this, count -> {
             pending.setText("Pending: " + (count == null ? 0 : count));
         });
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (NetworkUtil.isOnline(this)) {
+            triggerImmediateSync();
+        }
+    }
+
 
     private boolean hasLocationPermission() {
         return ContextCompat.checkSelfPermission(
@@ -168,6 +180,26 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+    private void triggerImmediateSync() {
+
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build();
+
+        OneTimeWorkRequest syncNow =
+                new OneTimeWorkRequest.Builder(LocationSyncWorker.class)
+                        .setConstraints(constraints)
+                        .build();
+
+        WorkManager.getInstance(this)
+                .enqueueUniqueWork(
+                        "immediate_location_sync",
+                        ExistingWorkPolicy.KEEP,
+                        syncNow
+                );
+    }
+
 
 
 }
