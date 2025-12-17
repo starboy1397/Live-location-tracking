@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "540788381228",
+    "project_id": "location-f78dc",
+    "storage_bucket": "location-f78dc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:540788381228:android:11de2986c10c0c08a5a389",
+        "android_client_info": {
+          "package_name": "com.kredily.location"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrIF8Wv1pJcb7FAGZgkjksRHEaTh15qKw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
